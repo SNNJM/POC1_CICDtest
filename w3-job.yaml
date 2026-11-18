@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smart-detailing-w3-test
+  namespace: smart-detailing-dev
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: w3-python
+          image: smartpharma.azurecr.io/smart-detailing-w3:v2
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: w3-ai-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
