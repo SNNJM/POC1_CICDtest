@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: smart-detailing-w3-a46c166
+  name: smart-detailing-w3-fe01af1
   namespace: smart-detailing-dev
 spec:
   backoffLimit: 0
@@ -10,7 +10,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: w3-python
-          image: smartpharma.azurecr.io/smart-detailing-w3:a46c1667441620736d63f8339299f2e4f8e1f1ca
+          image: smartpharma.azurecr.io/smart-detailing-w3:fe01af11912fdf169fe7fa59bbabc2e4f4560fff
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
