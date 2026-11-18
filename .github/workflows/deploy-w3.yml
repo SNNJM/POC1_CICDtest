@@ -1,6 +1,10 @@
 
 name: Smart Detailing W3 CI
 
+concurrency:
+  group: smart-detailing-w3-main
+  cancel-in-progress: false
+
 on:
   push:
     branches:
@@ -9,7 +13,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 env:
   ACR_NAME: smartpharma
@@ -58,7 +62,29 @@ jobs:
           docker push \
             "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
 
+
       - name: Display image information
         run: |
           echo "Successfully pushed:"
           echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
+
+            - name: Update GitOps manifest
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          SHORT_SHA="${IMAGE_TAG:0:7}"
+
+          sed -i -E \
+            "s/name: smart-detailing-w3-[a-z0-9]+/name: smart-detailing-w3-${SHORT_SHA}/" \
+            gitops/w3-job.yaml
+
+          sed -i -E \
+            "s|image: smartpharma.azurecr.io/smart-detailing-w3:[a-zA-Z0-9._-]+|image: smartpharma.azurecr.io/smart-detailing-w3:${IMAGE_TAG}|" \
+            gitops/w3-job.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add gitops/w3-job.yaml
+          git commit -m "ci: deploy W3 image ${SHORT_SHA}"
+          git push origin HEAD:main
