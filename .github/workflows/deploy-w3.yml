@@ -1,15 +1,17 @@
 
-name: Smart Detailing W3 CI
-
-concurrency:
-  group: smart-detailing-w3-main
-  cancel-in-progress: false
+name: Smart Detailing W3 CI/CD
 
 on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "gitops/**"
   workflow_dispatch:
+
+concurrency:
+  group: smart-detailing-w3-main
+  cancel-in-progress: false
 
 permissions:
   id-token: write
@@ -21,13 +23,15 @@ env:
   IMAGE_NAME: smart-detailing-w3
 
 jobs:
-  build-and-push:
-    name: Build and Push to ACR
+  build-and-deploy:
+    name: Build, Push and Update GitOps
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Validate Python syntax
         run: python3 -m py_compile w3_test.py
@@ -62,16 +66,12 @@ jobs:
           docker push \
             "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
 
-
-      - name: Display image information
-        run: |
-          echo "Successfully pushed:"
-          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
-
-            - name: Update GitOps manifest
+      - name: Update GitOps manifest
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
+          set -euo pipefail
+
           SHORT_SHA="${IMAGE_TAG:0:7}"
 
           sed -i -E \
@@ -82,9 +82,23 @@ jobs:
             "s|image: smartpharma.azurecr.io/smart-detailing-w3:[a-zA-Z0-9._-]+|image: smartpharma.azurecr.io/smart-detailing-w3:${IMAGE_TAG}|" \
             gitops/w3-job.yaml
 
+          echo "Updated GitOps manifest:"
+          grep -E 'name: smart-detailing-w3-|image: smartpharma.azurecr.io/smart-detailing-w3:' gitops/w3-job.yaml
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add gitops/w3-job.yaml
-          git commit -m "ci: deploy W3 image ${SHORT_SHA}"
-          git push origin HEAD:main
+
+          if git diff --cached --quiet; then
+            echo "GitOps manifest is already up to date."
+          else
+            git commit -m "ci: deploy W3 image ${SHORT_SHA}"
+            git push origin HEAD:main
+          fi
+
+      - name: Display image information
+        run: |
+          echo "Successfully pushed:"
+          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
+          echo "GitOps manifest updated for Flux CD."
